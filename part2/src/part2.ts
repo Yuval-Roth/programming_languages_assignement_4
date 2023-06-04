@@ -5,19 +5,23 @@
 // Specify the return type.
 export const delayedSum = (a: number, b: number, delay: number) : Promise<number> => 
     new Promise<number>((resolve, reject) => delay < 0 ?
-        reject("negative delay") :
+        reject("received negative delay in argument. we do not support traveling back in time yet") :
         setTimeout(()=>{resolve(a+b)},delay))  
     
 export const testDelayedSum = () => {
     const time: number = Date.now()
 
-    delayedSum(2,4,1000).then((result : number) => {
-        if(Date.now() - time >= 1000) console.log("1000 ms passed")
-        else  console.log("1000 ms didn't pass !!!!!")
+    delayedSum(2,4,-10).then((result : number) => {
+        if(Date.now() - time >= 1000)
+            console.log("1000 ms failed to fail successfully") // this is good
+        else
+            console.log("1000 ms failed !!!!! *surprised_pikachu_face.png*") // this is not so good (but we do not discriminate)
 
-        if(result != 6) console.log("2 + 4 != 6 apparantly")
-        else console.log("2 + 4 == 6 goodie")
-    })  
+        if(result != 6)
+            console.log("person 1: '2 plus 4 is not 6', person 2(slightly fat): 'OH NO! anyway....'") // this is as mild inconvenience 
+        else
+            console.log("2 + 4 == 6 es verdad! tan maravilioso, tan bonito!!!!!") // MUM CAN I HAZ DIS? 
+    }).catch((error : string) => console.log("error: "+ error))
  }
  
 
