@@ -8,15 +8,21 @@ export const delayedSum = (a: number, b: number, delay: number) : Promise<number
         reject("negative delay") :
         setTimeout(()=>{resolve(a+b)},delay))  
     
-export const testDelayedSum : () => boolean = () => {
-    let a = 2, b = 4, delay = 1000
-    let testResult : boolean = false
+export const testDelayedSum = () => {
     const time: number = Date.now()
-    delayedSum(a,b,delay)
-            .then((result : number) => testResult = (Date.now() - time) >= 1000 && result === 6)
-            .catch((error : string) => {/*do nothing*/})
-    return testResult
- }
+
+    delayedSum(2,4,-10).then((result : number) => {
+        if(Date.now() - time >= 1000)
+            console.log("1000 ms failed to fail successfully") // this is good
+        else
+            console.log("1000 ms failed !!!!! *surprised_pikachu_face.png*") // this is not so good (but we do not discriminate)
+
+        if(result != 6)
+            console.log("person 1: '2 plus 4 is not 6', person 2(slightly fat): 'OH NO! anyway....'") // this is as mild inconvenience 
+        else
+            console.log("2 + 4 == 6 es verdad! tan maravilioso, tan bonito!!!!!") // MUM CAN I HAZ DIS? 
+    }).catch((error : string) => console.log("error: "+ error))
+}
  
 
 // Q 2.2

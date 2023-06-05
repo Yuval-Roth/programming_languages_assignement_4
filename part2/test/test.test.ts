@@ -9,14 +9,14 @@ describe('Assignment 4 Part 2', () => {
             let a = 2, b = 4, delay = 10
             await delayedSum(a,b,delay)
                     .then((result : number) => expect(result === 6).toBeTruthy())
-                    .catch((error : string) => expect(false).toBeTruthy())
+                    .catch(() => expect(false).toBeTruthy())
         })
         test('delayedSum waits at least the specified delay', async () =>  {
             let a = 2, b = 4, delay = 200
             const time: number = Date.now()
             await delayedSum(a,b,delay)
-                    .then((result : number) => expect((Date.now() - time) >= delay).toBeTruthy())
-                    .catch((error : string) => expect(false).toBeTruthy())
+                    .then(() => expect((Date.now() - time) >= delay).toBeTruthy())
+                    .catch(() => expect(false).toBeTruthy())
         })
     })
 
