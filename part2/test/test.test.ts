@@ -3,20 +3,22 @@ import {
     delayedSum, Post, postsUrl, postUrl, invalidUrl, fetchData, fetchMultipleUrls
 } from '../src/part2';
 
+const fail = (message :string) => {throw new Error(message)}
+
 describe('Assignment 4 Part 2', () => {
     describe('Q2.1 delayedSum (6 points)', () => {
         test('delayedSum returns the sum', async () => {
             let a = 2, b = 4, delay = 10
             await delayedSum(a,b,delay)
-                    .then((result : number) => expect(result === 6).toBeTruthy())
-                    .catch(() => expect(false).toBeTruthy())
+                    .then((result : number) => expect(result).toBe(a+b))
+                    .catch((error: string) => fail(error))
         })
         test('delayedSum waits at least the specified delay', async () =>  {
             let a = 2, b = 4, delay = 200
             const time: number = Date.now()
             await delayedSum(a,b,delay)
                     .then(() => expect((Date.now() - time) >= delay).toBeTruthy())
-                    .catch(() => expect(false).toBeTruthy())
+                    .catch((error: string) => fail(error))
         })
     })
 
