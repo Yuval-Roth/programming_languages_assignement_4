@@ -55,8 +55,8 @@ export const fetchData = async (url: string) : Promise<Post | Post[]> =>{
             .catch((error) => error)
 }
 
-export const isPost = (x: Post | Post[]) : x is Post => ! Array.isArray(x) 
-export const isPostArray = (x: Post | Post[]) : x is Post[] => Array.isArray(x) 
+export const isPost = (x: Post | Post[]) : x is Post => ! isPostArray(x) 
+export const isPostArray = (x: Post | Post[]) : x is Post[] => Array.isArray(x)
 
 export const testFetchData = () => {
     fetchData(postUrl + 80)
@@ -95,17 +95,8 @@ export const fetchMultipleUrls = async (urls: string[]) : Promise<Post[]> => {
     let arr : Promise<Post[]>[] = []
     urls.forEach((url:string)=> {
         arr.push(
-            fetch(url,undefined)
-                .then((response : Response) => 
-                    response.json()
-                        .then((values : Post | Post[]) => {
-                            if(isPost(values)){
-                                return [values]
-                            } else {
-                                return values
-                            }
-                        })
-                        .catch((error) => error))
+            fetchData(url)
+                .then((value: Post | Post[]) => isPost(value) ? [value] : value)
                 .catch((error) => error)
         )
     })
