@@ -220,10 +220,15 @@ export const typeofLetrec = (exp: LetrecExp, tenv: TEnv): Result<TExp> => {
 //   (define (var : texp) val)
 // TODO L51 - write the true definition
 export const typeofDefine = (exp: DefineExp, tenv: TEnv): Result<VoidTExp> =>
-    makeFailure("TODO");
+    bind(typeofExp(exp.val,tenv), 
+        (texp => {
+            const result : Result<true> = checkCompatibleType(exp.var.texp,texp,exp)
+            return (result.tag === "Failure") ? result : makeOk(makeVoidTExp())
+        })
+    )
 
 // Purpose: compute the type of a program
 // Typing rule:
 // TODO - write the true definition
 export const typeofProgram = (exp: Program, tenv: TEnv): Result<TExp> =>
-    makeFailure("TODO");
+    typeofExps(exp.exps,tenv)

@@ -39,13 +39,22 @@ import { isEmpty, isNonEmptyList } from "../shared/list";
 import { isArray, isBoolean, isString } from '../shared/type-predicates';
 import { makeBox, setBox, unbox, Box } from '../shared/box';
 import { cons, first, rest } from '../shared/list';
-import { Result, bind, makeOk, makeFailure, mapResult, mapv } from "../shared/result";
+import { Result, bind, makeOk, makeFailure, mapResult, mapv, isOk } from "../shared/result";
 import { parse as p } from "../shared/parser";
 import { format } from "../shared/format";
 
 // TODO L51: Support union types where needed
-export type TExp =  AtomicTExp | CompoundTExp | TVar;
-export const isTExp = (x: any): x is TExp => isAtomicTExp(x) || isCompoundTExp(x) || isTVar(x);
+export type UnionTExp = {tag: "UnionTExp", components: TExp[]}
+export const isUnionTExp = (x: any) : x is UnionTExp => x.tag === "UnionTExp"
+export const extendUnionTExp = (unionT: UnionTExp, tes: TExp[]) : UnionTExp => {
+    unionT.components.push(... tes.filter((value: TExp) => unionT.components.includes(value) === false))
+    return unionT
+}
+export const makeUnionTExp = (tes:TExp[]) : UnionTExp => ({tag:'UnionTExp', components: tes })
+
+
+export type TExp =  AtomicTExp | CompoundTExp | TVar | UnionTExp;
+export const isTExp = (x: any): x is TExp => isAtomicTExp(x) || isCompoundTExp(x) || isTVar(x) || isUnionTExp(x);
 
 export type AtomicTExp = NumTExp | BoolTExp | StrTExp | VoidTExp;
 export const isAtomicTExp = (x: any): x is AtomicTExp =>
@@ -175,10 +184,15 @@ const parseCompoundTExp = (texps: Sexp[]): Result<ProcTExp> => {
            (pos === 0) ? makeFailure(`No param types in proc texp - ${format(texps)}`) :
            (pos === texps.length - 1) ? makeFailure(`No return type in proc texp - ${format(texps)}`) :
            (texps.slice(pos + 1).indexOf('->') > -1) ? makeFailure(`Only one -> allowed in a procexp - ${format(texps)}`) :
+           texps.at(0) === 'union' ?  parseUnionTExp(texps.slice(1)) :
            bind(parseTupleTExp(texps.slice(0, pos)), (args: TExp[]) =>
                mapv(parseTExp(texps[pos + 1]), (returnTE: TExp) =>
                     makeProcTExp(args, returnTE)));
 };
+
+const parseUnionTExp = (texps: Sexp[]) : Result<UnionTExp> => 
+    bind(parseTupleTExp(texps.filter((se : Sexp) => ! (se === 'union'))), (tes : TExp[]) => makeOk(makeUnionTExp(tes)))
+
 
 /*
 ;; Expected structure: <te1> [* <te2> ... * <ten>]?
@@ -221,6 +235,7 @@ export const unparseTExp = (te: TExp): Result<string> => {
                                 [...paramTEs, '->', returnTE])) :
         isEmptyTupleTExp(x) ? makeOk("Empty") :
         isNonEmptyTupleTExp(x) ? unparseTuple(x.TEs) :
+        isUnionTExp(x) ? unparseUnionTExp(x) :
         x === undefined ? makeFailure("Undefined TVar") :
         x;
 
@@ -230,6 +245,9 @@ export const unparseTExp = (te: TExp): Result<string> => {
                                           isArray(x) ? `(${x.join(' ')})` :
                                           x);
 }
+
+export const unparseUnionTExp = (x: UnionTExp) : Result<string> => 
+    bind(mapResult((t: TExp) => unparseTExp(t), x.components), (results : string[]) => makeOk(results.join(' | ')))
 
 // No need to change this for Union
 // ============================================================
