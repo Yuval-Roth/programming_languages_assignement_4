@@ -40,28 +40,35 @@ import { isArray, isBoolean, isString } from '../shared/type-predicates';
 import { makeBox, setBox, unbox, Box } from '../shared/box';
 import { cons, first, rest } from '../shared/list';
 import { Result, bind, makeOk, makeFailure, mapResult, mapv, isOk } from "../shared/result";
-import { parse as p } from "../shared/parser";
+import { isSexp, parse as p } from "../shared/parser";
 import { format } from "../shared/format";
 
 // TODO L51: Support union types where needed
 export type UnionTExp = {tag: "UnionTExp", components: TExp[]}
 export const isUnionTExp = (x: any) : x is UnionTExp => x.tag === "UnionTExp"
-export const extendUnionTExp = (unionT: UnionTExp, tes: TExp[]) : UnionTExp => {
-    unionT.components.push(... tes.filter((value: TExp) => unionT.components.includes(value) === false))
-    return unionT
+export const makeUnionTExp = (t1 : TExp, t2 : TExp ) : UnionTExp =>{
+    let toReturn : UnionTExp
+    if(isUnionTExp(t1)) {
+        if (isUnionTExp(t2)) t1.components.push(... t2.components)
+        else t1.components.push(t2)
+        toReturn = t1
+    } else if (isUnionTExp(t2)){
+            t2.components.push(t1)
+            toReturn = t2
+    } else toReturn = ({tag:'UnionTExp', components:[t1,t2]})
+    toReturn.components.sort((t1:TExp,t2:TExp) =>  t1.tag.localeCompare(t2.tag))
+    return toReturn
 }
-export const makeUnionTExp = (tes:TExp[]) : UnionTExp => ({tag:'UnionTExp', components: tes })
-
-
-export type TExp =  AtomicTExp | CompoundTExp | TVar | UnionTExp;
-export const isTExp = (x: any): x is TExp => isAtomicTExp(x) || isCompoundTExp(x) || isTVar(x) || isUnionTExp(x);
+     
+export type TExp =  AtomicTExp | CompoundTExp | TVar;
+export const isTExp = (x: any): x is TExp => isAtomicTExp(x) || isCompoundTExp(x) || isTVar(x);
 
 export type AtomicTExp = NumTExp | BoolTExp | StrTExp | VoidTExp;
 export const isAtomicTExp = (x: any): x is AtomicTExp =>
     isNumTExp(x) || isBoolTExp(x) || isStrTExp(x) || isVoidTExp(x);
 
-export type CompoundTExp = ProcTExp | TupleTExp;
-export const isCompoundTExp = (x: any): x is CompoundTExp => isProcTExp(x) || isTupleTExp(x);
+export type CompoundTExp = ProcTExp | TupleTExp | UnionTExp;
+export const isCompoundTExp = (x: any): x is CompoundTExp => isProcTExp(x) || isTupleTExp(x) || isUnionTExp(x);
 
 export type NonTupleTExp = AtomicTExp | ProcTExp | TVar;
 export const isNonTupleTExp = (x: any): x is NonTupleTExp =>
@@ -178,7 +185,7 @@ export const parseTExp = (texp: Sexp): Result<TExp> =>
 ;; expected exactly one -> in the list
 ;; We do not accept (a -> b -> c) - must parenthesize
 */
-const parseCompoundTExp = (texps: Sexp[]): Result<ProcTExp> => {
+const parseCompoundTExp = (texps: Sexp[]): Result<CompoundTExp> => {
     const pos = texps.indexOf('->');
     return (pos === -1)  ? makeFailure(`Procedure type expression without -> - ${format(texps)}`) :
            (pos === 0) ? makeFailure(`No param types in proc texp - ${format(texps)}`) :
@@ -190,9 +197,11 @@ const parseCompoundTExp = (texps: Sexp[]): Result<ProcTExp> => {
                     makeProcTExp(args, returnTE)));
 };
 
-const parseUnionTExp = (texps: Sexp[]) : Result<UnionTExp> => 
-    bind(parseTupleTExp(texps.filter((se : Sexp) => ! (se === 'union'))), (tes : TExp[]) => makeOk(makeUnionTExp(tes)))
-
+const parseUnionTExp = (tes: Sexp[]) : Result<UnionTExp> =>
+     bind(parseTExp(tes[0]), (t1: TExp) =>
+         tes[1] === 'union' ?
+            bind(parseUnionTExp(tes.slice(2)),(t2: TExp) => makeOk(makeUnionTExp(t1,t2))) :
+            bind(parseTExp(tes[1]), (t2:TExp) => makeOk(makeUnionTExp(t1,t2))))
 
 /*
 ;; Expected structure: <te1> [* <te2> ... * <ten>]?
@@ -246,8 +255,15 @@ export const unparseTExp = (te: TExp): Result<string> => {
                                           x);
 }
 
-export const unparseUnionTExp = (x: UnionTExp) : Result<string> => 
-    bind(mapResult((t: TExp) => unparseTExp(t), x.components), (results : string[]) => makeOk(results.join(' | ')))
+export const unparseUnionTExp = (x: UnionTExp) : Result<string> => {
+
+    const buildString = (values: string[]) : string => values.length === 1 ?
+        values[0] : `(union ${values[0]} ${buildString(values.slice(1))})`
+    
+    return bind(mapResult((t: TExp) => unparseTExp(t), x.components),
+        (results : string[]) => makeOk(buildString(results))) 
+}
+
 
 // No need to change this for Union
 // ============================================================
