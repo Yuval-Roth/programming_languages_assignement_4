@@ -186,12 +186,16 @@ export const parseTExp = (texp: Sexp): Result<TExp> =>
 ;; We do not accept (a -> b -> c) - must parenthesize
 */
 const parseCompoundTExp = (texps: Sexp[]): Result<CompoundTExp> => {
+
+    //UnionTExp
+    if (texps[0] === 'union') return parseUnionTExp(texps.slice(1))
+
+    //procTExp
     const pos = texps.indexOf('->');
     return (pos === -1)  ? makeFailure(`Procedure type expression without -> - ${format(texps)}`) :
            (pos === 0) ? makeFailure(`No param types in proc texp - ${format(texps)}`) :
            (pos === texps.length - 1) ? makeFailure(`No return type in proc texp - ${format(texps)}`) :
            (texps.slice(pos + 1).indexOf('->') > -1) ? makeFailure(`Only one -> allowed in a procexp - ${format(texps)}`) :
-           texps.at(0) === 'union' ?  parseUnionTExp(texps.slice(1)) :
            bind(parseTupleTExp(texps.slice(0, pos)), (args: TExp[]) =>
                mapv(parseTExp(texps[pos + 1]), (returnTE: TExp) =>
                     makeProcTExp(args, returnTE)));
