@@ -42,18 +42,25 @@ import { cons, first, rest } from '../shared/list';
 import { Result, bind, makeOk, makeFailure, mapResult, mapv, isOk } from "../shared/result";
 import { isSexp, parse as p } from "../shared/parser";
 import { format } from "../shared/format";
+import { isDeepStrictEqual } from "util";
 
 // TODO L51: Support union types where needed
 export type UnionTExp = {tag: "UnionTExp", components: TExp[]}
 export const isUnionTExp = (x: any) : x is UnionTExp => x.tag === "UnionTExp"
+
+export const isEqualUnionTExp = (t1: UnionTExp, t2: UnionTExp): boolean =>
+  t1.components.length === t2.components.length &&
+  t1.components.every((c) => t2.components.some((d) =>  isDeepStrictEqual(c, d) ));
+  
 export const makeUnionTExp = (t1 : TExp, t2 : TExp ) : UnionTExp =>{
+    const includesEqualTE = (t: TExp, arr:any[]) => arr.some((tExp : TExp) => isDeepStrictEqual(tExp,t));
     let toReturn : UnionTExp
     if(isUnionTExp(t1)) {
-        if (isUnionTExp(t2)) t1.components.push(... t2.components)
+        if (isUnionTExp(t2)) t1.components.push(... t2.components.filter((t:TExp) => !includesEqualTE(t,t1.components)))
         else t1.components.push(t2)
         toReturn = t1
     } else if (isUnionTExp(t2)){
-            t2.components.push(t1)
+            t2.components.push(... [t1].filter((t:TExp) => !includesEqualTE(t,t2.components)))
             toReturn = t2
     } else toReturn = ({tag:'UnionTExp', components:[t1,t2]})
     toReturn.components.sort((t1:TExp,t2:TExp) =>  t1.tag.localeCompare(t2.tag))

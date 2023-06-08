@@ -1,6 +1,6 @@
 // L5-typecheck
 // ========================================================
-import { equals, map, zipWith } from 'ramda';
+import { equals, map, zipWith,any } from 'ramda';
 import { isAppExp, isBoolExp, isDefineExp, isIfExp, isLetrecExp, isLetExp, isNumExp,
          isPrimOp, isProcExp, isProgram, isStrExp, isVarRef, parseL5Exp, unparse,
          AppExp, BoolExp, DefineExp, Exp, IfExp, LetrecExp, LetExp, NumExp,
@@ -8,9 +8,9 @@ import { isAppExp, isBoolExp, isDefineExp, isIfExp, isLetrecExp, isLetExp, isNum
 import { applyTEnv, makeEmptyTEnv, makeExtendTEnv, TEnv } from "./TEnv";
 import { isProcTExp, makeBoolTExp, makeNumTExp, makeProcTExp, makeStrTExp, makeVoidTExp,
          parseTE, unparseTExp,
-         BoolTExp, NumTExp, StrTExp, TExp, VoidTExp } from "./TExp";
+         BoolTExp, NumTExp, StrTExp, TExp, VoidTExp, isUnionTExp, UnionTExp, isEqualUnionTExp } from "./TExp";
 import { isEmpty, allT, first, rest, NonEmptyList, List, isNonEmptyList } from '../shared/list';
-import { Result, makeFailure, bind, makeOk, zipWithResult } from '../shared/result';
+import { Result, makeFailure, bind, makeOk, zipWithResult, mapv } from '../shared/result';
 import { parse as p } from "../shared/parser";
 import { format } from '../shared/format';
 
@@ -21,10 +21,18 @@ import { format } from '../shared/format';
 // Exp is only passed for documentation purposes.
 export const checkCompatibleType = (te1: TExp, te2: TExp, exp: Exp): Result<true> =>
   equals(te1, te2) ? makeOk(true) :
+  isUnionTExp(te1) ? checkCompatibleUnionType(te1, te2, exp) : 
   bind(unparseTExp(te1), (te1: string) =>
     bind(unparseTExp(te2), (te2: string) =>
         bind(unparse(exp), (exp: string) => 
             makeFailure<true>(`Incompatible types: ${te1} and ${te2} in ${exp}`))));
+
+ //check if te1 is a union type and te2 is compatible with one of the union types
+const checkCompatibleUnionType = (t1: UnionTExp, t2: TExp, exp: Exp): Result<true> =>
+    isUnionTExp(t2) ? isEqualUnionTExp(t1, t2) : 
+    bind(any((te: TExp) => isOk(checkCompatibleType(t1, te, exp)), t1.params) ?
+        makeOk(true) : makeFailure(`Incompatible types: ${te1} and ${te2} in ${exp}`), _ => makeOk(true));
+
 
 // Compute the type of L5 AST exps to TE
 // ===============================================
