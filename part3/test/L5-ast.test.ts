@@ -1,11 +1,12 @@
 import { isNumExp, isBoolExp, isVarRef, isPrimOp, isProgram, isDefineExp, isVarDecl,
          isAppExp, isStrExp, isIfExp, isProcExp, isLetExp, isLitExp, isLetrecExp, isSetExp,
          parseL5Exp, unparse, Exp, parseL5, Program, Parsed } from "../src/L5/L5-ast";
-import { Result, bind, mapv, isOkT, makeOk, isFailure } from "../src/shared/result";
+import { Result, bind, mapv, isOkT, makeOk, isFailure, makeFailure } from "../src/shared/result";
 import { parse as parseSexp } from "../src/shared/parser";
 import { first, second } from "../src/shared/list";
 import { ProcTExp, isProcTExp, parseTE } from "../src/L5/TExp";
 import exp from "constants";
+import { format } from "../src/shared/format";
 
 const p = (x : string) : Result<Exp> => bind(parseSexp(x), (p) => parseL5Exp(p));
 
@@ -94,35 +95,36 @@ describe('L5 parseTExp Union Parser', () => {
         const expression = '(union number boolean)';
         const expected = { tag: 'UnionTExp', components: [{ tag: 'BoolTExp' }, { tag: 'NumTExp' }] };
         const actual = parseTE(expression);
-        expect(actual).toEqual(expected);
+        expect(actual).toEqual(makeOk(expected));
     });
 
-    const expectedUnion = ({tag:'UnionTExp',components:[({tag:'BoolTExp'}),({tag:'NumTExp'}),({tag:'StringTExp'})]}) 
+    const expectedUnion = ({tag:'UnionTExp',components:[({tag:'BoolTExp'}),({tag:'NumTExp'}),({tag:'StrTExp'})]}) 
 
     it('parseTExp parses embedded union expressions', () => {
         const expression = '(union string (union number boolean))';
         const expected = expectedUnion;
         const actual = parseTE(expression);
-        expect(actual).toEqual(expected);
+        expect(actual).toEqual(makeOk(expected));
     });
 
     it('parseTExp parses union types in proc argument position', () => {
-        const expression = '(((union string (union number boolean)) string) -> number)'
-        const expected = ({ tag:'ProcTExp', args:[expectedUnion,({tag:'StringTExp'})], returnTE:({tag:'NumTExp'})})
+        const expression = '((union string (union number boolean)) -> number)'
+        const expected = ({ tag:'ProcTExp', paramTEs:[expectedUnion], returnTE:({tag:'NumTExp'})})
         const actual = parseTE(expression)
-        expect(actual).toEqual(expected);
+        expect(actual).toEqual(makeOk(expected));
     });
 
     it('parseTExp parses union types in return type argument position', () => {
-        const expression = '(string -> (union string (union number boolean))'
-        const expected = ({ tag:'ProcTExp', args:[({tag:'StringTExp'})], returnTE:expectedUnion})
+        const expression = '(string -> (union string (union number boolean)))'
+        const expected = ({ tag:'ProcTExp', paramTEs:[({tag:'StrTExp'})], returnTE:expectedUnion})
         const actual = parseTE(expression)
-        expect(actual).toEqual(expected);
+        expect(actual).toEqual(makeOk(expected));
     });
 
     it('parseTExp fails to parse union of bad type expressions', () => {
+        const tes = ['number', 'boolean', 'string'];
         const expression = '(union number boolean string)'
-        expect(() => parseTE(expression)).toThrow();
+        expect(parseTE(expression)).toEqual(makeFailure(`Unexpected TExp - ${format(tes)}`));
     });
 
 });
