@@ -191,12 +191,11 @@ export const parseTExp = (texp: Sexp): Result<TExp> =>
 */
 const parseCompoundTExp = (texps: Sexp[]): Result<CompoundTExp> => {
 
-    const pos = texps.indexOf('->');
-
     //UnionTExp
-    if (pos === -1 && texps[0] === 'union') return parseUnionTExp(texps.slice(1))
-
+    if (texps[0] === 'union') return parseUnionTExp(texps.slice(1))
+    
     //procTExp
+    const pos = texps.indexOf('->');
     return (pos === -1) ? makeFailure(`Procedure type expression without -> - ${format(texps)}`) :
            (pos === 0) ? makeFailure(`No param types in proc texp - ${format(texps)}`) :
            (pos === texps.length - 1) ? makeFailure(`No return type in proc texp - ${format(texps)}`) :

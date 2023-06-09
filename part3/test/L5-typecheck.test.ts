@@ -1,9 +1,9 @@
 import { isTypedArray } from 'util/types';
 import { Exp, isProgram, parseL5, Program } from '../src/L5/L5-ast';
-import { typeofProgram, L5typeof, checkCompatibleType, checkCompatibleUnionType } from '../src/L5/L5-typecheck';
+import { typeofProgram, L5typeof, checkCompatibleType, checkCompatibleUnionType, typeofIf, checkCompatibleProcType } from '../src/L5/L5-typecheck';
 import { applyTEnv } from '../src/L5/TEnv';
 import { isNumTExp, isProcTExp, makeBoolTExp, makeNumTExp, makeProcTExp, makeTVar, 
-         makeVoidTExp, parseTE, unparseTExp, TExp, isTExp, UnionTExp } from '../src/L5/TExp';
+         makeVoidTExp, parseTE, unparseTExp, TExp, isTExp, UnionTExp, ProcTExp } from '../src/L5/TExp';
 import { makeOk, isOkT, bind, mapv, isFailure, Result } from '../src/shared/result';
 
 describe('L5 Type Checker', () => {
@@ -169,12 +169,32 @@ describe('L5 Type Checker', () => {
         // typeOfIf( (if #t 1 2) ) -> number
         // typeOfIf( (if #t (if #f 1 #t) "ok") ) -> union(boolean, number, string)
         // typeOfIf( (if 1 2 3) ) -> failure
+
+        expect(L5typeof("(if (> 1 2) 1 #t)")).toEqual(makeOk("(union boolean number)"));
+
     });
 
     // TODO L51 Test checkCompatibleType with unions in arg positions of Procedures
     describe('L5 Test checkCompatibleType with unions in arg positions of Procedures', () => {
         // TODO L51
         // Implement the test for the examples given in the document of the assignment (3.2.4)
+        it("should pass", () => {
+            const t1 : TExp = ({tag:'UnionTExp', components:[{tag:'NumTExp'}, {tag:'BoolTExp'}]});
+            const t2 : TExp = ({tag:'UnionTExp', components:[{tag:'NumTExp'}, {tag:'BoolTExp'}, {tag:'StrTExp'}]});
+            const p1 : ProcTExp = ({tag:'ProcTExp', paramTEs:[t1], returnTE:t1});
+            const p2 : ProcTExp = ({tag:'ProcTExp', paramTEs:[t2], returnTE:t2});
+            expect(checkCompatibleProcType(p1, p2, ({}) as Exp)).toBeTruthy();
+        });
+
+        it("should fail", () => {
+            const t1 : TExp = ({tag:'UnionTExp', components:[{tag:'NumTExp'}, {tag:'BoolTExp'}]});
+            const t2 : TExp = ({tag:'UnionTExp', components:[{tag:'NumTExp'}, {tag:'StrTExp'}]});
+            const p1 : ProcTExp = ({tag:'ProcTExp', paramTEs:[t1], returnTE:t1});
+            const p2 : ProcTExp = ({tag:'ProcTExp', paramTEs:[t2], returnTE:t2});
+            expect(checkCompatibleProcType(p1, p2, ({}) as Exp)).toBeFalsy();
+        });
+
+
     });
 
 });

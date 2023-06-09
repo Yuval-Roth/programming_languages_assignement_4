@@ -1,6 +1,6 @@
 // L5-typecheck
 // ========================================================
-import { equals, map, zipWith,any,all } from 'ramda';
+import { equals, map, zipWith,any,all,range } from 'ramda';
 import { isAppExp, isBoolExp, isDefineExp, isIfExp, isLetrecExp, isLetExp, isNumExp,
          isPrimOp, isProcExp, isProgram, isStrExp, isVarRef, parseL5Exp, unparse,
          AppExp, BoolExp, DefineExp, Exp, IfExp, LetrecExp, LetExp, NumExp,
@@ -8,7 +8,7 @@ import { isAppExp, isBoolExp, isDefineExp, isIfExp, isLetrecExp, isLetExp, isNum
 import { applyTEnv, makeEmptyTEnv, makeExtendTEnv, TEnv } from "./TEnv";
 import { isProcTExp, makeBoolTExp, makeNumTExp, makeProcTExp, makeStrTExp, makeVoidTExp,
          parseTE, unparseTExp,
-         BoolTExp, NumTExp, StrTExp, TExp, VoidTExp, isUnionTExp, UnionTExp } from "./TExp";
+         BoolTExp, NumTExp, StrTExp, TExp, VoidTExp, isUnionTExp, UnionTExp, makeUnionTExp, ProcTExp } from "./TExp";
 import { isEmpty, allT, first, rest, NonEmptyList, List, isNonEmptyList } from '../shared/list';
 import { Result, makeFailure, bind, makeOk, zipWithResult, mapv, isOk } from '../shared/result';
 import { parse as p } from "../shared/parser";
@@ -21,6 +21,7 @@ import { format } from '../shared/format';
 // Exp is only passed for documentation purposes.
 export const checkCompatibleType = (te1: TExp, te2: TExp, exp: Exp): Result<true> =>
   equals(te1, te2) ? makeOk(true) :
+  isProcTExp(te1) && isProcTExp(te2) && checkCompatibleProcType(te1, te2 ,exp) ? makeOk(true) :
   isUnionTExp(te2) && checkCompatibleUnionType(te1, te2) ? makeOk(true) : 
   bind(unparseTExp(te1), (te1: string) =>
     bind(unparseTExp(te2), (te2: string) =>
@@ -34,6 +35,13 @@ export const checkCompatibleUnionType = (t1: TExp, t2: UnionTExp): boolean =>
         all((te: TExp) => checkCompatibleUnionType(te, t2), t1.components)
     )
     : any((te: TExp)=> equals(te, t1), t2.components)
+
+export const checkCompatibleProcType = (p1: ProcTExp, p2: ProcTExp, exp: Exp ): boolean =>
+    equals(p1.paramTEs.length, p2.paramTEs.length) &&
+    checkCompatibleType(p1.returnTE, p2.returnTE, exp) &&
+    all((i : number) => isOk(checkCompatibleType(p1.paramTEs[i], p2.paramTEs[i],exp)), range(0, p1.paramTEs.length))
+
+
 
 // Compute the type of L5 AST exps to TE
 // ===============================================
@@ -115,8 +123,7 @@ export const typeofPrim = (p: PrimOp): Result<TExp> =>
 
 // TODO L51
 export const makeUnion = (te1: TExp, te2: TExp): TExp =>
-    // Replace return type and body with appropriate code.
-    makeStrTExp();
+    makeUnionTExp(te1, te2)
 
 // TODO L51
 // Purpose: compute the type of an if-exp
@@ -131,11 +138,12 @@ export const typeofIf = (ifExp: IfExp, tenv: TEnv): Result<TExp> => {
     const altTE = typeofExp(ifExp.alt, tenv);
     const constraint1 = bind(testTE, testTE => checkCompatibleType(testTE, makeBoolTExp(), ifExp));
     const constraint2 = bind(thenTE, (thenTE: TExp) =>
-                            bind(altTE, (altTE: TExp) =>
-                                checkCompatibleType(thenTE, altTE, ifExp)));
+                            bind(altTE, (altTE: TExp) => makeOk<true>(true)))
+
     return bind(constraint1, (_c1: true) =>
                 bind(constraint2, (_c2: true) =>
-                    thenTE));
+                    bind(thenTE, (t1: TExp) => bind(altTE, (t2: TExp) => 
+                        equals(t1,t2) ? thenTE : makeOk(makeUnion(t1, t2)))))); 
 };
 
 // Purpose: compute the type of a proc-exp
@@ -241,3 +249,6 @@ export const typeofDefine = (exp: DefineExp, tenv: TEnv): Result<VoidTExp> =>
 // TODO - write the true definition
 export const typeofProgram = (exp: Program, tenv: TEnv): Result<TExp> =>
     typeofExps(exp.exps,tenv)
+
+// p11(union number) , p12(string)
+// p21(union number boolean) , p22(union number string)

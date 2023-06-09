@@ -7,6 +7,7 @@ import { first, second } from "../src/shared/list";
 import { ProcTExp, isProcTExp, parseTE } from "../src/L5/TExp";
 import exp from "constants";
 import { format } from "../src/shared/format";
+import { L5typeof } from "../src/L5/L5-typecheck";
 
 const p = (x : string) : Result<Exp> => bind(parseSexp(x), (p) => parseL5Exp(p));
 
@@ -127,6 +128,12 @@ describe('L5 parseTExp Union Parser', () => {
         const expression = '(union number boolean string)'
         expect(parseTE(expression)).toEqual(makeFailure(`Unexpected TExp - ${format(tes)}`));
     });
+
+    it("parseTExp of multiple arguments", () => {
+        const expression = "(lambda ((x : number) (y : (union number boolean))) : number 2) ";
+        "number*(union number boolean) -> number"
+        expect(L5typeof(expression)).toEqual(makeOk("(number * (union boolean number) -> number)"));
+    })
 
 });
 
