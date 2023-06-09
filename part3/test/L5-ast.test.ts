@@ -12,7 +12,8 @@ import { L5typeof } from "../src/L5/L5-typecheck";
 const p = (x : string) : Result<Exp> => bind(parseSexp(x), (p) => parseL5Exp(p));
 
 
-// these tests were written by the staff of the course and they're broken so we commented them out
+// these tests were written by the staff of the course and they're not working
+// because 'TypeError: expect(...).toSatisfy is not a function' so we commented them out.
 
 // describe('L5 Parser', () => {
 //     it('parses atomic expressions', () => {
@@ -122,6 +123,13 @@ describe('L5 parseTExp Union Parser', () => {
         const actual = parseTE(expression)
         expect(actual).toEqual(makeOk(expected));
     });
+
+    it('parseTExp of union of union and union' , () => {
+        const expression = '(union (union number boolean) (union number string))'
+        const expected = expectedUnion
+        const actual = parseTE(expression)
+        expect(actual).toEqual(makeOk(expected));
+    })
 
     it('parseTExp fails to parse union of bad type expressions', () => {
         const tes = ['number', 'boolean', 'string'];

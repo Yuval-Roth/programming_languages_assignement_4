@@ -205,13 +205,13 @@ const parseCompoundTExp = (texps: Sexp[]): Result<CompoundTExp> => {
                     makeProcTExp(args, returnTE)));
 };
 
-// 'union' 'union' 'string' 'number' 'union' 'boolean -> number' 'number' = (union (union (union string number) boolean -> number) number)
 const parseUnionTExp = (tes: Sexp[]) : Result<UnionTExp> =>
-    bind(parseTExp(tes[0]), (t1: TExp) =>
-        isArray(tes[1]) ?
-           bind(parseCompoundTExp(tes[1]),(t2: TExp) => makeOk(makeUnionTExp(t1,t2))) :
-           tes.length === 2 ? bind(parseTExp(tes[1]), (t2:TExp) => makeOk(makeUnionTExp(t1,t2))) :
-              makeFailure(`Unexpected TExp - ${format(tes)}`)) 
+    tes.length === 2 ?
+        bind(parseTExp(tes[0]), (t1: TExp) =>
+            bind(parseTExp(tes[1]),(t2: TExp) => makeOk(makeUnionTExp(t1,t2))))
+        :
+        makeFailure(`Unexpected TExp - ${format(tes)}`) 
+
 
 /*
 ;; Expected structure: <te1> [* <te2> ... * <ten>]?
