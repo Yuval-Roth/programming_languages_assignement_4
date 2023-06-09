@@ -1,9 +1,9 @@
 import { isTypedArray } from 'util/types';
-import { isProgram, parseL5, Program } from '../src/L5/L5-ast';
-import { typeofProgram, L5typeof, checkCompatibleType } from '../src/L5/L5-typecheck';
+import { Exp, isProgram, parseL5, Program } from '../src/L5/L5-ast';
+import { typeofProgram, L5typeof, checkCompatibleType, checkCompatibleUnionType } from '../src/L5/L5-typecheck';
 import { applyTEnv } from '../src/L5/TEnv';
 import { isNumTExp, isProcTExp, makeBoolTExp, makeNumTExp, makeProcTExp, makeTVar, 
-         makeVoidTExp, parseTE, unparseTExp, TExp, isTExp } from '../src/L5/TExp';
+         makeVoidTExp, parseTE, unparseTExp, TExp, isTExp, UnionTExp } from '../src/L5/TExp';
 import { makeOk, isOkT, bind, mapv, isFailure, Result } from '../src/shared/result';
 
 describe('L5 Type Checker', () => {
@@ -134,7 +134,23 @@ describe('L5 Type Checker', () => {
 
     // TODO L51 Test checkCompatibleType with unions
     describe('L5 Test checkCompatibleType with unions', () => {
-        // TODO L51
+        it('union type & simple type', () => {
+            const t1 : TExp = ({tag:'BoolTExp'});
+            const t2 : TExp = ({tag:'UnionTExp', components:[{tag:'NumTExp'}, {tag:'BoolTExp'}]}) ;
+            expect(checkCompatibleUnionType(t1, t2)).toBeTruthy();
+        });
+
+        it('union type and union type', () => {
+            const t2 : TExp = ({tag:'UnionTExp', components:[{tag:'NumTExp'}, {tag:'BoolTExp'}, {tag:'StrTExp'}]});
+            const t1 : UnionTExp = ({tag:'UnionTExp', components:[{tag:'NumTExp'}, {tag:'BoolTExp'}]});
+            expect(checkCompatibleUnionType(t1, t2)).toBeTruthy();
+        });
+        
+          it('checks incompatible union types', () => {
+            const t1 : TExp = ({tag:'UnionTExp', components:[{tag:'NumTExp'}, {tag:'BoolTExp'}, {tag:'StrTExp'}]});
+            const t2 : UnionTExp = ({tag:'UnionTExp', components:[{tag:'NumTExp'}, {tag:'BoolTExp'}]});
+            expect(checkCompatibleUnionType(t1, t2)).toBeFalsy();
+          });
     });
 
     // TODO L51 Test makeUnion

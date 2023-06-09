@@ -27,7 +27,7 @@ export const checkCompatibleType = (te1: TExp, te2: TExp, exp: Exp): Result<true
         bind(unparse(exp), (exp: string) => 
             makeFailure<true>(`Incompatible types: ${te1} and ${te2} in ${exp}`))));
 
-const checkCompatibleUnionType = (t1: TExp, t2: UnionTExp): boolean =>
+export const checkCompatibleUnionType = (t1: TExp, t2: UnionTExp): boolean =>
     isUnionTExp(t1) ? 
     ( 
         t2.components.length < t1.components.length ? false :
