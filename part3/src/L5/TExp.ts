@@ -33,7 +33,7 @@
 ;; [Empty -> [union boolean number]]
 ;; [union [T1 -> T1] [Empty -> T1]]
 */
-import { chain, concat, map, uniq } from "ramda";
+import { chain, concat, equals, map, uniq } from "ramda";
 import { Sexp } from "s-expression";
 import { isEmpty, isNonEmptyList } from "../shared/list";
 import { isArray, isBoolean, isString } from '../shared/type-predicates';
@@ -47,13 +47,10 @@ import { isDeepStrictEqual } from "util";
 // TODO L51: Support union types where needed
 export type UnionTExp = {tag: "UnionTExp", components: TExp[]}
 export const isUnionTExp = (x: any) : x is UnionTExp => x.tag === "UnionTExp"
-
-export const isEqualUnionTExp = (t1: UnionTExp, t2: UnionTExp): boolean =>
-  t1.components.length === t2.components.length &&
-  t1.components.every((c) => t2.components.some((d) =>  isDeepStrictEqual(c, d) ));
-  
 export const makeUnionTExp = (t1 : TExp, t2 : TExp ) : UnionTExp =>{
-    const includesEqualTE = (t: TExp, arr:any[]) => arr.some((tExp : TExp) => isDeepStrictEqual(tExp,t));
+
+    const includesEqualTE = (t: TExp, arr:any[]) => arr.some((tExp : TExp) => equals(tExp,t));
+
     let toReturn : UnionTExp
     if(isUnionTExp(t1)) {
         if (isUnionTExp(t2)) t1.components.push(... t2.components.filter((t:TExp) => !includesEqualTE(t,t1.components)))
@@ -194,12 +191,13 @@ export const parseTExp = (texp: Sexp): Result<TExp> =>
 */
 const parseCompoundTExp = (texps: Sexp[]): Result<CompoundTExp> => {
 
+    const pos = texps.indexOf('->');
+
     //UnionTExp
-    if (texps[0] === 'union') return parseUnionTExp(texps.slice(1))
+    if (pos === -1 && texps[0] === 'union') return parseUnionTExp(texps.slice(1))
 
     //procTExp
-    const pos = texps.indexOf('->');
-    return (pos === -1)  ? makeFailure(`Procedure type expression without -> - ${format(texps)}`) :
+    return (pos === -1) ? makeFailure(`Procedure type expression without -> - ${format(texps)}`) :
            (pos === 0) ? makeFailure(`No param types in proc texp - ${format(texps)}`) :
            (pos === texps.length - 1) ? makeFailure(`No return type in proc texp - ${format(texps)}`) :
            (texps.slice(pos + 1).indexOf('->') > -1) ? makeFailure(`Only one -> allowed in a procexp - ${format(texps)}`) :
@@ -208,11 +206,13 @@ const parseCompoundTExp = (texps: Sexp[]): Result<CompoundTExp> => {
                     makeProcTExp(args, returnTE)));
 };
 
+// 'union' 'union' 'string' 'number' 'union' 'boolean -> number' 'number' = (union (union (union string number) boolean -> number) number)
 const parseUnionTExp = (tes: Sexp[]) : Result<UnionTExp> =>
-     bind(parseTExp(tes[0]), (t1: TExp) =>
-         tes[1] === 'union' ?
-            bind(parseUnionTExp(tes.slice(2)),(t2: TExp) => makeOk(makeUnionTExp(t1,t2))) :
-            bind(parseTExp(tes[1]), (t2:TExp) => makeOk(makeUnionTExp(t1,t2))))
+    bind(parseTExp(tes[0]), (t1: TExp) =>
+        tes[1] === 'union' ?
+           bind(parseUnionTExp(tes.slice(2)),(t2: TExp) => makeOk(makeUnionTExp(t1,t2))) :
+           tes.length === 2 ? bind(parseTExp(tes[1]), (t2:TExp) => makeOk(makeUnionTExp(t1,t2))) :
+              makeFailure(`Unexpected TExp - ${format(tes)}`)) 
 
 /*
 ;; Expected structure: <te1> [* <te2> ... * <ten>]?
